@@ -1,0 +1,23 @@
+{
+  "name": "topggbotvotervm",
+  "version": "1.0.0",
+  "description": "View model server to link UI with backend application",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/DowdyJ/TopggBotVoterVM.git"
+  },
+  "author": "DowdyJ",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/DowdyJ/TopggBotVoterVM/issues"
+  },
+  "homepage": "https://github.com/DowdyJ/TopggBotVoterVM#readme",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.18.2"
+  }
+}
