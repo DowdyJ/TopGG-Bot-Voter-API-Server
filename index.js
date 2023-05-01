@@ -76,7 +76,10 @@ const removeUser = (userData, settingsFileData) => {
 };
 
 app.get('/log', (req, res) => {
-    const { lastSeenIndex } = req.body;
+
+    console.log("Ran GET for /log")
+
+    const { lastSeenIndex } = req.headers;
 
     const logsToReturn = outputStrings.slice(lastSeenIndex);
     const response = { result: logsToReturn };
@@ -85,16 +88,21 @@ app.get('/log', (req, res) => {
   });
 
 app.get('/users', (req, res) => {
+    console.log("Ran GET for /users")
     const data = fs.readFileSync(`${botVoterInstallDir}data/config.json`);
 
     const jsonData = JSON.parse(data);
 
     const response = { result: jsonData.users }; 
     res.json(response);
+
+    console.log(response);
     return;
 });
 
 app.post('/users', (req, res) => {
+    console.log("Ran POST for /users")
+
     const { userData, mode } = req.body;
 
     const data = fs.readFileSync(`${botVoterInstallDir}data/config.json`);
