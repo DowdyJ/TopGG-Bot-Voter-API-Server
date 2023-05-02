@@ -2,11 +2,11 @@
 const express = require('express');
 const cors = require('cors');
 const fs = require('fs');
-
-
+const bodyparser = require('body-parser');
 
 const app = express();
 app.use(cors());
+app.use(bodyparser.json());
 
 let botVoterInstallDir = "/home/dowdyj/Documents/Programming/TopGG-Bot-Voter/"
 let botVoterOpen = false;
@@ -42,7 +42,7 @@ const startVote = () => {
 const addUser = (userData, settingsFileData) => {
     const foundDuplicate = false;
     for (const user of settingsFileData.users) {
-        if (user.discord_username === userData.discord_username) {
+        if (user.discord_displayname === userData.discord_displayname) {
             foundDuplicate = true;
             break;
         }
@@ -56,12 +56,27 @@ const addUser = (userData, settingsFileData) => {
     settingsFileData.users.push(userData);
 };
 
+
+const addBot = (botData, settingsFileData) => {
+    const foundDuplicate = botData.botName in settingsFileData.bots;
+
+    if (foundDuplicate) {
+        console.log("Duplicate bot found. Not added");
+        return null;
+    }
+
+    settingsFileData.bots[`${botData.botName}`] = botData.botID;
+
+    return settingsFileData;
+};
+
 const removeUser = (userData, settingsFileData) => {
-    const foundUserIndex = -1;
-    const foundUser = false;
+    let foundUserIndex = -1;
+    let foundUser = false;
     for (const user of settingsFileData.users) {
         foundUserIndex++;
-        if (user.discord_username === userData.discord_username) {
+        console.log(`Comparing ${user.discord_displayname} and ${userData.discord_displayname}`)
+        if (user.discord_displayname === userData.discord_displayname) {
             foundUser = true;
             break;
         }
@@ -72,7 +87,8 @@ const removeUser = (userData, settingsFileData) => {
         return null;
     }
 
-    return settingsFileData.users.splice(foundUserIndex, 1);
+    settingsFileData.users.splice(foundUserIndex, 1);
+    return settingsFileData;
 };
 
 app.get('/log', (req, res) => {
@@ -107,7 +123,6 @@ app.post('/users', (req, res) => {
 
     const data = fs.readFileSync(`${botVoterInstallDir}data/config.json`);
     const settingsDataJson = JSON.parse(data);
-    const userDataJson = JSON.parse(userData);
 
     if (mode !== 'add' && mode !== 'remove') {
         const response = { result: `bad mode: ${mode}` };
@@ -117,9 +132,9 @@ app.post('/users', (req, res) => {
 
     let resultJson;
     if (mode === 'add') {
-        resultJson = addUser(userDataJson, settingsDataJson);
+        resultJson = addUser(userData, settingsDataJson);
     } else if (mode === 'remove') {
-        resultJson = removeUser(userDataJson, settingsDataJson);
+        resultJson = removeUser(userData, settingsDataJson);
     }
 
     if (resultJson == null) {
@@ -135,6 +150,42 @@ app.post('/users', (req, res) => {
     return;
 });
 
+app.get('/bots', (req, res) => {
+    console.log("Ran GET for /bots")
+    const data = fs.readFileSync(`${botVoterInstallDir}data/config.json`);
+
+    const jsonData = JSON.parse(data);
+
+    const response = { result: jsonData.bots }; 
+    res.json(response);
+
+    return;
+});
+
+app.post('/bots', (req, res) => {
+    console.log("Ran POST for /bots")
+
+    console.log(req.body);
+
+    const { botName, botID } = req.body;
+
+    const data = fs.readFileSync(`${botVoterInstallDir}data/config.json`);
+    const settingsDataJson = JSON.parse(data);
+
+    let resultJson = addBot({botName: botName, botID: botID}, settingsDataJson);
+
+    if (resultJson == null) {
+        throw Error("Failed to change JSON settings.");
+    }
+
+    fs.writeFile(`${botVoterInstallDir}data/config.json`, JSON.stringify(resultJson), (err) => {
+        if (err) throw err;
+        console.log('JSON data written to file');
+    });
+
+    res.json('Added successfully');
+    return;
+});
 
 
 
