@@ -1,4 +1,4 @@
-
+const child_process = require('child_process');
 const express = require('express');
 const cors = require('cors');
 const fs = require('fs');
@@ -8,39 +8,50 @@ const app = express();
 app.use(cors());
 app.use(bodyparser.json());
 
+const maxMessagesToSave = 100;
+
 let botVoterInstallDir = "/home/dowdyj/Documents/Programming/TopGG-Bot-Voter/"
-let botVoterOpen = false;
+let botVoterStarted = false;
 let outputStrings = [];
+let voterChildProcess = null;
 
 const startVote = () => {
     const command = 'node';
     const args = [`${botVoterInstallDir}run.js`];
 
-    const childProcess = spawn(command, args);
-    botVoterOpen = true;
+    voterChildProcess = child_process.spawn(command, args);
 
-    childProcess.stdout.on('data', (data) => {
+    botVoterStarted = true;
+    voterChildProcess.stdout.on('data', (data) => {
         console.log(`stdout: ${data}`);
-        outputStrings.push(data);
+        outputStrings.push(data.toString());
+        outputStrings.slice(-1 * maxMessagesToSave);
     });
 
-    childProcess.stderr.on('data', (data) => {
+    voterChildProcess.stderr.on('data', (data) => {
         console.error(`stderr: ${data}`);
         outputStrings.push(data);
+        outputStrings.slice(-1 * maxMessagesToSave);
     });
 
-    childProcess.on('close', (code) => {
-        botVoterOpen = false;
+    voterChildProcess.on('exit', (code, signal) => {
         console.log(`child process exited with code ${code}`);
+        voterChildProcess = null;
     });
 };
-    //"discord_displayname":"DoeJ",
-    //"discord_username":"johndoe@example.com",
-    //"discord_password":"password",
-    //"bots_to_vote_for": []
+
+const stopVote = () => {
+    if (voterChildProcess === null) {
+        return;
+    }
+
+    voterChildProcess.kill();
+    voterChildProcess = null;
+    botVoterStarted = false;
+};
 
 const addUser = (userData, settingsFileData) => {
-    const foundDuplicate = false;
+    let foundDuplicate = false;
     for (const user of settingsFileData.users) {
         if (user.discord_displayname === userData.discord_displayname) {
             foundDuplicate = true;
@@ -54,6 +65,8 @@ const addUser = (userData, settingsFileData) => {
     }
 
     settingsFileData.users.push(userData);
+
+    return settingsFileData;
 };
 
 
@@ -75,7 +88,6 @@ const removeUser = (userData, settingsFileData) => {
     let foundUser = false;
     for (const user of settingsFileData.users) {
         foundUserIndex++;
-        console.log(`Comparing ${user.discord_displayname} and ${userData.discord_displayname}`)
         if (user.discord_displayname === userData.discord_displayname) {
             foundUser = true;
             break;
@@ -93,13 +105,13 @@ const removeUser = (userData, settingsFileData) => {
 
 app.get('/log', (req, res) => {
 
-    console.log("Ran GET for /log")
+    //console.log("Ran GET for /log")
 
     const { lastSeenIndex } = req.headers;
 
     const logsToReturn = outputStrings.slice(lastSeenIndex);
     const response = { result: logsToReturn };
-    res.json(response);
+    res.status(200).json(response);
     return;
   });
 
@@ -112,7 +124,6 @@ app.get('/users', (req, res) => {
     const response = { result: jsonData.users }; 
     res.json(response);
 
-    console.log(response);
     return;
 });
 
@@ -138,7 +149,9 @@ app.post('/users', (req, res) => {
     }
 
     if (resultJson == null) {
-        throw Error("Failed to change JSON settings.");
+        console.log("Warn: Failed to change JSON settings.");
+        res.status(400).json("Bad Request");
+        return;
     }
 
     fs.writeFile(`${botVoterInstallDir}data/config.json`, JSON.stringify(resultJson), (err) => {
@@ -146,7 +159,7 @@ app.post('/users', (req, res) => {
         console.log('JSON data written to file');
     });
 
-    res.json(resultJson);
+    res.status(201).json(resultJson);
     return;
 });
 
@@ -157,7 +170,7 @@ app.get('/bots', (req, res) => {
     const jsonData = JSON.parse(data);
 
     const response = { result: jsonData.bots }; 
-    res.json(response);
+    res.status(200).json(response);
 
     return;
 });
@@ -183,10 +196,9 @@ app.post('/bots', (req, res) => {
         console.log('JSON data written to file');
     });
 
-    res.json('Added successfully');
+    res.status(201).send('Added successfully');
     return;
 });
-
 
 
 app.post('/control', (req, res) => {
@@ -194,19 +206,22 @@ app.post('/control', (req, res) => {
 
     switch (mode) {
         case 'start':
-
+            startVote();
+            res.status(200).send("Voter start signal recieved");
             break;
         case 'stop':
-    
+            stopVote();
+            res.status(200).send("Voter signal recieved");
+            break;
+        case 'status':
+            res.status(200).send(botVoterStarted ? "RUNNING" : "STOPPED");
             break;
         default:
-            const response = { result: "bad request" };
-            res.status(400).json(response);
+            const response = "bad request";
+            res.status(400).send(response);
             return;
     }
 
-    const response = { result: "success" };
-    res.status(201).json(response);
     return;
   });
 
