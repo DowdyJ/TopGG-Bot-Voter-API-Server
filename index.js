@@ -10,7 +10,7 @@ app.use(bodyparser.json());
 
 const maxMessagesToSave = 100;
 
-let botVoterInstallDir = "/home/dowdyj/Documents/Programming/TopGG-Bot-Voter/"
+let botVoterInstallDir = "/your/install/directory/here"
 let botVoterStarted = false;
 let outputStrings = [];
 let voterChildProcess = null;
